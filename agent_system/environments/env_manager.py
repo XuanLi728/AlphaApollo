@@ -16,21 +16,14 @@
 # limitations under the License.
 
 import logging
-import os
-from collections import defaultdict
 from functools import partial
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Dict, List, Tuple
 
-import fire
-import numpy as np
-import torch
 from omegaconf import OmegaConf
 
 from agent_system.environments.base import EnvironmentManagerBase, to_numpy
 from agent_system.environments.prompts import *
-from agent_system.memory import (EvolvingMemory,
-                                 NDimensionalMemory, SearchMemory,
-                                 SimpleMemory)
+from agent_system.memory import EvolvingMemory, NDimensionalMemory, SimpleMemory
 
 logger = logging.getLogger(__name__)
 
@@ -228,8 +221,6 @@ class InformalMathEvolvingEnvironmentManager(EnvironmentManagerBase):
                 else:
                     # prompt for policy agent
                     template = get_policy_prompt(enable_python_code, use_history=False, use_previous_solutions=use_previous_solutions, enable_local_rag=enable_local_rag)
-                    # DEBUG: Check if template contains local_rag
-                    has_local_rag_in_prompt = "<local_rag>" in template
                     obs_i = template.format(question=self.tasks[i], previous_solutions=previous_solutions)
             else:
                 memory_entry = "" if not memory_ctx else memory_ctx[i]
@@ -246,8 +237,6 @@ class InformalMathEvolvingEnvironmentManager(EnvironmentManagerBase):
                 else:
                     # default prompt
                     template = get_policy_prompt(enable_python_code, use_history=True, use_previous_solutions=use_previous_solutions, enable_local_rag=enable_local_rag)
-                    # DEBUG: Check if template contains local_rag
-                    has_local_rag_in_prompt = "<local_rag>" in template
                     obs_i = template.format(
                         question=self.tasks[i],
                         memory_context=memory_entry,
@@ -368,9 +357,7 @@ class InformalMathTrainingEnvironmentManager(EnvironmentManagerBase):
         enable_python_code = bool(OmegaConf.select(self.config, "env.informal_math.enable_python_code") or False)
         # Set rag system flag
         enable_local_rag = bool(OmegaConf.select(self.config, "env.informal_math.enable_local_rag") or False)
-        # Get execution mode (default to agentic)
-        execution_mode = str(OmegaConf.select(self.config, "env.informal_math.execution_mode") or "agentic")
-        
+
         # Build tool_config dict for prompt generation (easier to extend with more tools)
         tool_config = {
             "enable_python_code": enable_python_code,
@@ -419,15 +406,12 @@ def make_envs(config):
     if not isinstance(config.env.rollout.n, int):
         raise ValueError("config.env.rollout.n should be an integer")
     group_n = config.env.rollout.n if config.env.rollout.n > 0 else 1
-    resources_per_worker = OmegaConf.to_container(config.env.resources_per_worker, resolve=True)
 
     # ======================= 
     # InformalMath Training
     # ======================= 
     if "informal_math_training" in config.env.env_name.lower():
-        from agent_system.environments.informal_math_training import (
-            build_informal_math_training_envs,
-            informal_math_training_projection)
+        from agent_system.environments.informal_math_training import build_informal_math_training_envs, informal_math_training_projection
         _envs = build_informal_math_training_envs(seed=config.env.seed, env_num=config.data.train_batch_size, group_n=group_n, is_train=True, env_config=config.env)
         _val_envs = build_informal_math_training_envs(seed=config.env.seed + 1000, env_num=config.data.val_batch_size, group_n=1, is_train=False, env_config=config.env)
 
@@ -440,9 +424,7 @@ def make_envs(config):
     # InformalMath Evolving
     # ======================= 
     elif "informal_math_evolving" in config.env.env_name.lower():
-        from agent_system.environments.informal_math_evolving import (
-            build_informal_math_evolving_envs,
-            informal_math_evolving_projection)
+        from agent_system.environments.informal_math_evolving import build_informal_math_evolving_envs, informal_math_evolving_projection
         _envs = build_informal_math_evolving_envs(seed=config.env.seed, env_num=config.data.train_batch_size, group_n=group_n, is_train=True, env_config=config.env)
         _val_envs = build_informal_math_evolving_envs(seed=config.env.seed + 1000, env_num=config.data.val_batch_size, group_n=1, is_train=False, env_config=config.env)
 
