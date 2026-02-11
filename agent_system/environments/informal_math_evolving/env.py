@@ -4,12 +4,9 @@ from typing import Any, Dict, List, Optional, Tuple
 
 from omegaconf import DictConfig
 
-from agent_system.environments.informal_math_evolving.base_text_env import (
-    BaseTextEnv, BaseTextEnvStepOutput, ConversationType)
-from agent_system.environments.informal_math_evolving.utils.qwen_math import \
-    compute_score
-from tools import \
-    InformalMathToolGroup
+from agent_system.environments.informal_math_evolving.base_text_env import BaseTextEnv, BaseTextEnvStepOutput, ConversationType
+from agent_system.environments.informal_math_evolving.utils.qwen_math import compute_score
+from tools import InformalMathToolGroup
 
 
 class InformalMathEvolvingEnv(BaseTextEnv):
@@ -142,7 +139,7 @@ class InformalMathEvolvingEnv(BaseTextEnv):
         
         return tool_calls
 
-    def step(self, action: StopIteration, text_actions: List[str]) -> BaseTextEnvStepOutput:
+    def step(self, action: str, text_actions: List[str]) -> BaseTextEnvStepOutput:
         self.turns += 1
         self.chat_history.append({"role": "assistant", 
                                   "content": action, 
@@ -153,7 +150,7 @@ class InformalMathEvolvingEnv(BaseTextEnv):
         try:
             tool_calls = self._parse_action(action)
         except Exception as e:
-            raise Exception(f"Error parsing action: {e}, action: {action}")
+            raise Exception(f"Error parsing action: {e}, action: {action}") from e
         
         self.done = self._is_done(action)
 
@@ -224,16 +221,11 @@ class InformalMathEvolvingEnv(BaseTextEnv):
                     except (json.JSONDecodeError, TypeError):
                         repo_name = ""
                         query = tool_input
-                    # DEBUG: local_rag execution
-                    print(f"\n[DEBUG env.py] Executing local_rag: repo={repo_name}, query={query[:50]}...")
                     observation = self._execute_tool(
                         "InformalMathToolGroup",
                         "local_rag",
                         {"repo_name": repo_name, "query": query},
                     )
-                    # DEBUG: local_rag result
-                    print(f"[DEBUG env.py] local_rag result length: {len(observation) if observation else 0} chars")
-                    print(f"[DEBUG env.py] local_rag result: {observation}")
                     tool_info = {
                         "tool_calling": True,
                         "tool_group": "InformalMathToolGroup",
